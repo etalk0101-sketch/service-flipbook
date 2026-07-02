@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>PDF Flipbook — StPageFlip + PDF.js (free)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold: #c9a84c;
+    --gold-dim: rgba(201,168,76,0.35);
+    --bg: #1a1008;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    background-image: radial-gradient(ellipse at 50% 0%, #3a2410 0%, var(--bg) 65%);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    font-family: Georgia, serif;
+    overflow: hidden;
+  }
+
+  header {
+    width: 100%; text-align: center;
+    padding: 12px 12px 8px;
+    color: var(--gold); font-size: 0.6rem;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    opacity: 0.8; flex-shrink: 0;
+  }
+
+  /* ── Upload bar ── */
+  .upload-bar {
+    display: flex; align-items: center; gap: 10px;
+    flex-shrink: 0; padding-bottom: 10px;
+  }
+  .upload-btn {
+    background: rgba(201,168,76,0.1);
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    font-family: Georgia, serif;
+    font-size: 0.72rem; letter-spacing: 0.08em;
+    padding: 8px 16px; border-radius: 20px;
+    cursor: pointer; transition: background 0.2s, border-color 0.2s;
+  }
+  .upload-btn:hover { background: rgba(201,168,76,0.2); border-color: var(--gold); }
+  #fileInput { display: none; }
+  .upload-status {
+    color: var(--gold-dim); font-size: 0.62rem; letter-spacing: 0.06em;
+    max-width: 220px; text-align: left;
+  }
+
+  /* ── Viewer ── */
+  .viewer-wrap {
+    flex: 1; width: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding-bottom: 8px; overflow: hidden;
+  }
+
+  .viewer-row {
+    display: flex; align-items: center;
+    justify-content: center;
+    width: 100%; gap: 10px; padding: 0 8px;
+  }
+
+  .arrow-wrap {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 6px; flex-shrink: 0;
+  }
+
+  .arrow-btn {
+    width: 50px; height: 50px; border-radius: 50%;
+    border: 2px solid var(--gold-dim);
+    background: rgba(201,168,76,0.07);
+    color: var(--gold); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.12s;
+    -webkit-tap-highlight-color: transparent;
+    font-size: 0;
+  }
+  .arrow-btn:hover:not(:disabled),
+  .arrow-btn:focus:not(:disabled) {
+    background: rgba(201,168,76,0.18);
+    border-color: var(--gold);
+    box-shadow: 0 0 18px rgba(201,168,76,0.28);
+  }
+  .arrow-btn:active:not(:disabled) { transform: scale(0.90); }
+  .arrow-btn:disabled { opacity: 0.14; cursor: not-allowed; transform: none !important; }
+  .arrow-btn svg { width: 28px; height: 28px; fill: currentColor; pointer-events: none; }
+
+  .arrow-label {
+    color: var(--gold-dim); font-size: 0.56rem;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* ── Book container (StPageFlip renders inside this) ── */
+  #book {
+    box-shadow: 0 8px 36px rgba(0,0,0,0.8);
+  }
+  #book .page {
+    background: #fff;
+  }
+  #book .page img {
+    width: 100%; height: 100%; object-fit: contain; display: block;
+  }
+
+  .empty-state {
+    width: 380px; max-width: calc(100vw - 132px);
+    aspect-ratio: 1169 / 1654; max-height: 70vh;
+    background: repeating-linear-gradient(45deg, #221509, #221509 10px, #1c1207 10px, #1c1207 20px);
+    border: 1px dashed var(--gold-dim);
+    border-radius: 4px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 10px; color: var(--gold-dim); text-align: center; padding: 20px;
+    font-size: 0.75rem; letter-spacing: 0.05em;
+  }
+
+  /* ── Indicator ── */
+  .indicator {
+    margin-top: 12px;
+    display: flex; flex-direction: column;
+    align-items: center; gap: 8px; flex-shrink: 0;
+  }
+  .page-label {
+    color: var(--gold); font-size: 0.7rem;
+    letter-spacing: 0.15em; opacity: 0.85;
+    text-align: center; min-width: 220px;
+  }
+  .progress-bar {
+    width: 180px; height: 2px;
+    background: rgba(201,168,76,0.1);
+    border-radius: 1px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: var(--gold);
+    border-radius: 1px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+  .hint {
+    color: rgba(201,168,76,0.26); font-size: 0.56rem;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>PDF Flipbook — StPageFlip (MIT) + PDF.js (Apache 2.0)</header>
+
+<div class="upload-bar">
+  <button class="upload-btn" id="uploadBtn">Choose PDF</button>
+  <input type="file" id="fileInput" accept="application/pdf">
+  <span class="upload-status" id="uploadStatus">No file loaded yet</span>
+</div>
+
+<div class="viewer-wrap">
+  <div class="viewer-row">
+
+    <div class="arrow-wrap">
+      <button class="arrow-btn" id="btnBack" disabled aria-label="Previous page">
+        <svg viewBox="0 0 24 24"><path d="M14 18l1.41-1.41L10.83 12l4.58-4.59L14 6l-6 6z"/></svg>
+      </button>
+      <span class="arrow-label">◀ Back</span>
+    </div>
+
+    <div id="bookHolder">
+      <div class="empty-state" id="emptyState">Upload a PDF above.<br>Each page will become<br>a flippable sheet.</div>
+      <div id="book" style="display:none"></div>
+    </div>
+
+    <div class="arrow-wrap">
+      <button class="arrow-btn" id="btnFwd" disabled aria-label="Next page">
+        <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+      </button>
+      <span class="arrow-label">Forward ▶</span>
+    </div>
+
+  </div>
+
+  <div class="indicator">
+    <div class="page-label" id="pageLabel">—</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="hint">Tap arrows · swipe · or press ← → keys once loaded</div>
+  </div>
+</div>
+
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  /* ─────────────────────────────────────────────────────────
+     CONFIG — for a public deployment, set AUTO_LOAD_PDF to the
+     filename of the PDF sitting in the same folder as this
+     HTML file (e.g. "service.pdf"). It will render and open
+     automatically for every visitor — no click required.
+     Leave it as null to keep the manual "Choose PDF" button
+     (useful for testing locally before you deploy).
+     ───────────────────────────────────────────────────────── */
+  const AUTO_LOAD_PDF = "service.pdf"; // must match the PDF filename you upload alongside this page
+  /* ───────────────────────────────────────────────────────── */
+
+  const uploadBtn    = document.getElementById('uploadBtn');
+  const fileInput    = document.getElementById('fileInput');
+  const uploadStatus = document.getElementById('uploadStatus');
+  const emptyState   = document.getElementById('emptyState');
+  const bookEl       = document.getElementById('book');
+  const btnBack      = document.getElementById('btnBack');
+  const btnFwd       = document.getElementById('btnFwd');
+  const pageLabel    = document.getElementById('pageLabel');
+  const progressFill = document.getElementById('progressFill');
+
+  let pageFlip = null;
+  let totalPages = 0;
+
+  uploadBtn.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    file.arrayBuffer().then(buf => loadPdfFromBuffer(buf, file.name));
+  });
+
+  async function loadPdfFromBuffer(buf, label) {
+    uploadStatus.textContent = 'Reading PDF…';
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    totalPages = pdf.numPages;
+
+    const images = [];
+    for (let i = 1; i <= totalPages; i++) {
+      uploadStatus.textContent = `Rendering page ${i} of ${totalPages}…`;
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2 });
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext('2d');
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      images.push(canvas.toDataURL('image/jpeg', 0.9));
+    }
+
+    uploadStatus.textContent = `Loaded "${label}" — ${totalPages} page${totalPages > 1 ? 's' : ''}`;
+    buildBook(images);
+  }
+
+  // Auto-load on page open, for public deployments
+  if (AUTO_LOAD_PDF) {
+    document.querySelector('.upload-bar').style.display = 'none';
+    uploadStatus.textContent = 'Loading…';
+    fetch(AUTO_LOAD_PDF)
+      .then(res => {
+        if (!res.ok) throw new Error('PDF not found: ' + AUTO_LOAD_PDF);
+        return res.arrayBuffer();
+      })
+      .then(buf => loadPdfFromBuffer(buf, AUTO_LOAD_PDF))
+      .catch(err => {
+        emptyState.textContent = 'Could not load the PDF. Check that "' + AUTO_LOAD_PDF + '" is in the same folder as this page.';
+        console.error(err);
+      });
+  }
+
+  function buildBook(images) {
+    emptyState.style.display = 'none';
+    bookEl.style.display = 'block';
+    bookEl.innerHTML = '';
+
+    if (pageFlip) { pageFlip.destroy(); pageFlip = null; }
+
+    pageFlip = new St.PageFlip(bookEl, {
+      width: 420,
+      height: 594,
+      size: 'stretch',
+      minWidth: 240,
+      maxWidth: 900,
+      minHeight: 340,
+      maxHeight: 1200,
+      maxShadowOpacity: 0.5,
+      showCover: true,
+      mobileScrollSupport: false
+    });
+
+    pageFlip.loadFromImages(images);
+
+    pageFlip.on('flip', updateUI);
+    pageFlip.on('init', updateUI);
+
+    btnBack.disabled = false;
+    btnFwd.disabled  = false;
+    btnBack.onclick = () => pageFlip.flipPrev();
+    btnFwd.onclick  = () => pageFlip.flipNext();
+
+    document.addEventListener('keydown', (e) => {
+      if (!pageFlip) return;
+      if (e.key === 'ArrowRight') pageFlip.flipNext();
+      if (e.key === 'ArrowLeft')  pageFlip.flipPrev();
+    });
+  }
+
+  function updateUI() {
+    const cur = pageFlip.getCurrentPageIndex();
+    pageLabel.textContent = `Page ${cur + 1} of ${totalPages}`;
+    progressFill.style.width = (((cur + 1) / totalPages) * 100) + '%';
+    btnBack.disabled = cur === 0;
+    btnFwd.disabled  = cur === totalPages - 1;
+  }
+</script>
+</body>
+</html>
