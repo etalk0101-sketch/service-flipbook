@@ -70,9 +70,10 @@ function buildNavigationDots() {
 
 async function renderPage(pageNumber, canvas) {
     const page = await pdfDoc.getPage(pageNumber);
-    const frameRect = frame.getBoundingClientRect();
+    const frameWidth = frame.clientWidth;
+    const frameHeight = frame.clientHeight;
     const baseViewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(frameRect.width / baseViewport.width, frameRect.height / baseViewport.height);
+    const scale = Math.min(frameWidth / baseViewport.width, frameHeight / baseViewport.height);
     const dpr = window.devicePixelRatio || 1;
     const viewport = page.getViewport({ scale: scale * dpr });
     const context = canvas.getContext('2d', { alpha: false });
@@ -89,10 +90,10 @@ async function renderPage(pageNumber, canvas) {
         }
     }
 
-    canvas.width = Math.max(1, Math.floor(viewport.width));
-    canvas.height = Math.max(1, Math.floor(viewport.height));
-    canvas.style.width = `${Math.max(1, Math.floor(viewport.width / dpr))}px`;
-    canvas.style.height = `${Math.max(1, Math.floor(viewport.height / dpr))}px`;
+    canvas.width = Math.max(1, Math.ceil(viewport.width));
+    canvas.height = Math.max(1, Math.ceil(viewport.height));
+    canvas.style.width = `${Math.max(1, Math.ceil(viewport.width / dpr))}px`;
+    canvas.style.height = `${Math.max(1, Math.ceil(viewport.height / dpr))}px`;
 
     const renderTask = page.render({ canvasContext: context, viewport });
     canvas._renderTask = renderTask;
