@@ -187,17 +187,6 @@ document.addEventListener('keydown', event => {
     if (event.key === 'ArrowLeft') go(-1);
 });
 
-let touchStartX = 0;
-document.addEventListener('touchstart', event => {
-    touchStartX = event.touches[0].clientX;
-}, { passive: true });
-document.addEventListener('touchend', event => {
-    const deltaX = event.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(deltaX) > 38) {
-        go(deltaX < 0 ? 1 : -1);
-    }
-}, { passive: true });
-
 window.addEventListener('resize', scheduleRerender);
 
 async function init() {
