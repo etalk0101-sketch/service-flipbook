@@ -4,6 +4,25 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dis
 
 const PDF_URL = './Wsheet.pdf';
 
+// Wsheet.pdf holds imposed landscape sheets — each PDF page is really two
+// A5 pages side by side. This map lists the logical A5 pages in reading
+// order and says which half of which PDF page each one comes from.
+// Edit this if your imposition/page count differs.
+const PAGE_MAP = [
+    { pdfPage: 1, half: 'right' }, // Logical page 1 - Front Cover
+    { pdfPage: 2, half: 'left' },  // Logical page 2 - Inside Left
+    { pdfPage: 2, half: 'right' }, // Logical page 3 - Inside Right
+    { pdfPage: 1, half: 'left' },  // Logical page 4 - Back Cover
+];
+
+const pdfPageCache = new Map();
+async function getPdfPage(pdfPageNumber) {
+    if (!pdfPageCache.has(pdfPageNumber)) {
+        pdfPageCache.set(pdfPageNumber, pdfDoc.getPage(pdfPageNumber));
+    }
+    return pdfPageCache.get(pdfPageNumber);
+}
+
 let pdfDoc = null;
 let totalPages = 0;
 let currentPage = 1;
@@ -68,43 +87,56 @@ function buildNavigationDots() {
     pipsRow.appendChild(fragment);
 }
 
-async function renderPage(pageNumber, canvas) {
-    const page = await pdfDoc.getPage(pageNumber);
+async function renderPage(logicalPageNumber, canvas) {
+    const mapping = PAGE_MAP[logicalPageNumber - 1];
+    if (!mapping) return;
+
+    // Guard against a slower, older render finishing after a newer one.
+    const myGen = (canvas._renderGen || 0) + 1;
+    canvas._renderGen = myGen;
+
+    const page = await getPdfPage(mapping.pdfPage);
     const frameWidth = frame.clientWidth;
     const frameHeight = frame.clientHeight;
     const baseViewport = page.getViewport({ scale: 1 });
-    const scale = Math.min(frameWidth / baseViewport.width, frameHeight / baseViewport.height);
+    const halfWidth = baseViewport.width / 2;
     const dpr = window.devicePixelRatio || 1;
-    const viewport = page.getViewport({ scale: scale * dpr });
-    const context = canvas.getContext('2d', { alpha: false });
+    const scale = Math.min(frameWidth / halfWidth, frameHeight / baseViewport.height) * dpr;
+    const fullViewport = page.getViewport({ scale });
 
+    // Render the whole landscape sheet to an offscreen canvas first...
+    const offscreen = document.createElement('canvas');
+    offscreen.width = Math.max(1, Math.ceil(fullViewport.width));
+    offscreen.height = Math.max(1, Math.ceil(fullViewport.height));
+    const offCtx = offscreen.getContext('2d', { alpha: false });
+
+    if (!offCtx) {
+        throw new Error('Unable to create canvas context');
+    }
+
+    await page.render({ canvasContext: offCtx, viewport: fullViewport }).promise;
+
+    if (canvas._renderGen !== myGen) return; // superseded by a newer render
+
+    // ...then crop out just the requested A5 half.
+    const halfPxWidth = offscreen.width / 2;
+    const sx = mapping.half === 'left' ? 0 : halfPxWidth;
+
+    const context = canvas.getContext('2d', { alpha: false });
     if (!context) {
         throw new Error('Unable to create canvas context');
     }
 
-    if (canvas._renderTask) {
-        try {
-            canvas._renderTask.cancel();
-        } catch {
-            /* ignored */
-        }
-    }
+    canvas.width = Math.max(1, Math.ceil(halfPxWidth));
+    canvas.height = offscreen.height;
+    canvas.style.width = `${Math.max(1, Math.ceil(halfPxWidth / dpr))}px`;
+    canvas.style.height = `${Math.max(1, Math.ceil(offscreen.height / dpr))}px`;
 
-    canvas.width = Math.max(1, Math.ceil(viewport.width));
-    canvas.height = Math.max(1, Math.ceil(viewport.height));
-    canvas.style.width = `${Math.max(1, Math.ceil(viewport.width / dpr))}px`;
-    canvas.style.height = `${Math.max(1, Math.ceil(viewport.height / dpr))}px`;
-
-    const renderTask = page.render({ canvasContext: context, viewport });
-    canvas._renderTask = renderTask;
-
-    try {
-        await renderTask.promise;
-    } finally {
-        if (canvas._renderTask === renderTask) {
-            canvas._renderTask = null;
-        }
-    }
+    context.drawImage(
+        offscreen,
+        sx, 0, halfPxWidth, offscreen.height,
+        0, 0, halfPxWidth, offscreen.height,
+    );
 }
 
 async function renderCurrentPage() {
@@ -192,11 +224,18 @@ window.addEventListener('resize', scheduleRerender);
 async function init() {
     try {
         pdfDoc = await pdfjsLib.getDocument(PDF_URL).promise;
-        totalPages = pdfDoc.numPages;
 
-        const firstPage = await pdfDoc.getPage(1);
+        if (pdfDoc.numPages * 2 !== PAGE_MAP.length) {
+            console.warn(
+                `Wsheet.pdf has ${pdfDoc.numPages} sheet(s), but PAGE_MAP expects ${PAGE_MAP.length / 2}. Update PAGE_MAP to match.`,
+            );
+        }
+
+        totalPages = PAGE_MAP.length;
+
+        const firstPage = await getPdfPage(PAGE_MAP[0].pdfPage);
         const firstViewport = firstPage.getViewport({ scale: 1 });
-        setPageRatio(firstViewport.width, firstViewport.height);
+        setPageRatio(firstViewport.width / 2, firstViewport.height);
 
         buildNavigationDots();
         currentPage = 1;
