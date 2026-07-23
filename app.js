@@ -5,15 +5,24 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dis
 const PDF_URL = './Wsheet.pdf';
 
 // Wsheet.pdf holds imposed landscape sheets — each PDF page is really two
-// A5 pages side by side. This map lists the logical A5 pages in reading
-// order and says which half of which PDF page each one comes from.
-// Edit this if your imposition/page count differs.
-const PAGE_MAP = [
+// A5 pages side by side. This is the core 4-page brochure, in reading
+// order, and says which half of which PDF page each logical page comes
+// from. Edit this if your core imposition differs.
+//
+// If a PDF page is already a single, un-imposed A5 page (no cropping
+// needed), use half: null for that entry instead.
+const BASE_PAGE_MAP = [
     { pdfPage: 1, half: 'right' }, // Logical page 1 - Front Cover
     { pdfPage: 2, half: 'left' },  // Logical page 2 - Inside Left
     { pdfPage: 2, half: 'right' }, // Logical page 3 - Inside Right
     { pdfPage: 1, half: 'left' },  // Logical page 4 - Back Cover
 ];
+
+// The actual page map used at runtime. This starts as BASE_PAGE_MAP, but
+// init() appends any extra PDF pages found after the ones BASE_PAGE_MAP
+// already uses, as plain full A5 pages, so extra inserts/sheets after
+// page 4 just work without editing this file.
+let PAGE_MAP = BASE_PAGE_MAP.slice();
 
 const pdfPageCache = new Map();
 async function getPdfPage(pdfPageNumber) {
@@ -99,22 +108,56 @@ async function renderPage(logicalPageNumber, canvas) {
     const frameWidth = frame.clientWidth;
     const frameHeight = frame.clientHeight;
     const baseViewport = page.getViewport({ scale: 1 });
-    const halfWidth = baseViewport.width / 2;
+    const contentWidth = mapping.half ? baseViewport.width / 2 : baseViewport.width;
     const dpr = window.devicePixelRatio || 1;
-    const scale = Math.min(frameWidth / halfWidth, frameHeight / baseViewport.height) * dpr;
-    const fullViewport = page.getViewport({ scale });
+    const scale = Math.min(frameWidth / contentWidth, frameHeight / baseViewport.height) * dpr;
+    const viewport = page.getViewport({ scale });
 
-    // Render the whole landscape sheet to an offscreen canvas first...
+    if (!mapping.half) {
+        // The PDF page already IS one A5 page — render it straight in, no cropping.
+        const context = canvas.getContext('2d', { alpha: false });
+        if (!context) {
+            throw new Error('Unable to create canvas context');
+        }
+
+        if (canvas._renderTask) {
+            try {
+                canvas._renderTask.cancel();
+            } catch {
+                /* ignored */
+            }
+        }
+
+        canvas.width = Math.max(1, Math.ceil(viewport.width));
+        canvas.height = Math.max(1, Math.ceil(viewport.height));
+        canvas.style.width = `${Math.max(1, Math.ceil(viewport.width / dpr))}px`;
+        canvas.style.height = `${Math.max(1, Math.ceil(viewport.height / dpr))}px`;
+
+        const renderTask = page.render({ canvasContext: context, viewport });
+        canvas._renderTask = renderTask;
+
+        try {
+            await renderTask.promise;
+        } finally {
+            if (canvas._renderTask === renderTask) {
+                canvas._renderTask = null;
+            }
+        }
+        return;
+    }
+
+    // Sheet holds two A5 pages side by side — render the whole sheet to an
+    // offscreen canvas first...
     const offscreen = document.createElement('canvas');
-    offscreen.width = Math.max(1, Math.ceil(fullViewport.width));
-    offscreen.height = Math.max(1, Math.ceil(fullViewport.height));
+    offscreen.width = Math.max(1, Math.ceil(viewport.width));
+    offscreen.height = Math.max(1, Math.ceil(viewport.height));
     const offCtx = offscreen.getContext('2d', { alpha: false });
 
     if (!offCtx) {
         throw new Error('Unable to create canvas context');
     }
 
-    await page.render({ canvasContext: offCtx, viewport: fullViewport }).promise;
+    await page.render({ canvasContext: offCtx, viewport }).promise;
 
     if (canvas._renderGen !== myGen) return; // superseded by a newer render
 
@@ -225,17 +268,27 @@ async function init() {
     try {
         pdfDoc = await pdfjsLib.getDocument(PDF_URL).promise;
 
-        if (pdfDoc.numPages * 2 !== PAGE_MAP.length) {
-            console.warn(
-                `Wsheet.pdf has ${pdfDoc.numPages} sheet(s), but PAGE_MAP expects ${PAGE_MAP.length / 2}. Update PAGE_MAP to match.`,
-            );
+        // Extend PAGE_MAP with any PDF pages beyond the ones BASE_PAGE_MAP
+        // already references, so extra A5 pages/inserts after page 4 show
+        // up automatically as plain full pages.
+        const highestUsedPdfPage = Math.max(...BASE_PAGE_MAP.map(m => m.pdfPage));
+        const extraPages = [];
+        for (let p = highestUsedPdfPage + 1; p <= pdfDoc.numPages; p += 1) {
+            extraPages.push({ pdfPage: p, half: null });
+        }
+        PAGE_MAP = [...BASE_PAGE_MAP, ...extraPages];
+
+        if (extraPages.length > 0) {
+            console.info(`Found ${extraPages.length} extra A5 page(s) after page ${BASE_PAGE_MAP.length}.`);
         }
 
         totalPages = PAGE_MAP.length;
 
-        const firstPage = await getPdfPage(PAGE_MAP[0].pdfPage);
+        const firstMapping = PAGE_MAP[0];
+        const firstPage = await getPdfPage(firstMapping.pdfPage);
         const firstViewport = firstPage.getViewport({ scale: 1 });
-        setPageRatio(firstViewport.width / 2, firstViewport.height);
+        const firstWidth = firstMapping.half ? firstViewport.width / 2 : firstViewport.width;
+        setPageRatio(firstWidth, firstViewport.height);
 
         buildNavigationDots();
         currentPage = 1;
