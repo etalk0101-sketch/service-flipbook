@@ -5,17 +5,24 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dis
 const PDF_URL = './Wsheet.pdf';
 
 // Wsheet.pdf holds imposed landscape sheets — each PDF page is really two
-// A5 pages side by side. This is the core 4-page brochure, in reading
-// order, and says which half of which PDF page each logical page comes
-// from. Edit this if your core imposition differs.
+// A5 pages side by side. This is the core brochure, in reading order, and
+// says which half of which PDF page each logical page comes from. Edit
+// this if your core imposition differs.
 //
 // If a PDF page is already a single, un-imposed A5 page (no cropping
-// needed), use half: null for that entry instead.
+// needed), use half: null for that entry instead. Any PDF page you don't
+// explicitly reference here (including unused halves, like the blank
+// right half of page 3) is assumed by init() to be a later un-imposed
+// insert — so if you add more imposed sheets after this map, list both
+// halves you actually want here rather than relying on auto-append.
 const BASE_PAGE_MAP = [
     { pdfPage: 1, half: 'right' }, // Logical page 1 - Front Cover
     { pdfPage: 2, half: 'left' },  // Logical page 2 - Inside Left
     { pdfPage: 2, half: 'right' }, // Logical page 3 - Inside Right
     { pdfPage: 1, half: 'left' },  // Logical page 4 - Back Cover
+    { pdfPage: 3, half: 'left' },  // Logical page 5 - Psalm 23 insert
+    // Right half of PDF page 3 is blank in the source file, so it's
+    // intentionally not mapped to a logical page.
 ];
 
 // The actual page map used at runtime. This starts as BASE_PAGE_MAP, but
