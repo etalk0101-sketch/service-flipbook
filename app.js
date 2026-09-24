@@ -10,11 +10,13 @@ const PDF_URL = './Wsheet.pdf';
 // Edit this if your imposition/page count differs.
 const PAGE_MAP = [
     { pdfPage: 1, half: 'right' }, // Logical page 1 - Front Cover
-    { pdfPage: 2, half: 'left' },  // Logical page 2 - Inside Left
-    { pdfPage: 2, half: 'right' }, // Logical page 3 - Inside Right
-    { pdfPage: 1, half: 'left' },  // Logical page 4 - Back Cover
-    { pdfPage: 3, half: 'left' },  // Logical page 5 - First Reading
-    { pdfPage: 3, half: 'right' }, // Logical page 6 - Second Reading
+    { pdfPage: 2, half: 'left' },  // Logical page 2 - Order of Service
+    { pdfPage: 2, half: 'right' }, // Logical page 3 - Sunday Morning Team / Notices
+    { pdfPage: 1, half: 'left' },  // Logical page 4 - Church Notices (back cover)
+    { pdfPage: 3, half: 'left' },  // Logical page 5 - Prayer (part 1)
+    { pdfPage: 3, half: 'right' }, // Logical page 6 - Prayer (continued)
+    { pdfPage: 4, half: 'left' },  // Logical page 7 - Old Testament Reading (Deuteronomy 26:1-11)
+    { pdfPage: 4, half: 'right' }, // Logical page 8 - New Testament Reading (Matthew 6:25-33)
 ];
 
 const pdfPageCache = new Map();
