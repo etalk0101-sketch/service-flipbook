@@ -2,7 +2,9 @@ import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.m
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
 
-const PDF_URL = './Wsheet.pdf';
+// Bump this each time Wsheet.pdf is replaced so browsers don't serve a stale copy.
+const PDF_VERSION = '2026-09-27';
+const PDF_URL = `./Wsheet.pdf?v=${PDF_VERSION}`;
 
 // Wsheet.pdf holds imposed landscape sheets — each PDF page is really two
 // A5 pages side by side. This map lists the logical A5 pages in reading
@@ -195,6 +197,7 @@ async function go(dir) {
         busy = false;
         currentPage = fromPage;
         updateUI();
+        pageLabel.textContent = `Could not load page ${nextPage} - check Wsheet.pdf`;
         return;
     }
 
@@ -233,6 +236,14 @@ async function init() {
             console.warn(
                 `Wsheet.pdf has ${pdfDoc.numPages} sheet(s), but PAGE_MAP expects ${PAGE_MAP.length / 2}. Update PAGE_MAP to match.`,
             );
+        }
+
+        const neededSheets = Math.max(...PAGE_MAP.map(entry => entry.pdfPage));
+        if (pdfDoc.numPages < neededSheets) {
+            pageLabel.textContent = `Wsheet.pdf has ${pdfDoc.numPages} sheet(s); ${neededSheets} needed`;
+            btnBack.disabled = true;
+            btnFwd.disabled = true;
+            return;
         }
 
         totalPages = PAGE_MAP.length;
