@@ -13,11 +13,10 @@ const PDF_URL = `./Wsheet.pdf?v=${PDF_VERSION}`;
 const PAGE_MAP = [
     { pdfPage: 1, half: 'right' }, // Logical page 1 - Front Cover
     { pdfPage: 2, half: 'left' },  // Logical page 2 - Order of Service
-    { pdfPage: 2, half: 'right' }, // Logical page 3 - Sunday Morning Team / Notices
+    { pdfPage: 2, half: 'right' }, // Logical page 3 - Sunday Morning Team / Psalm 133 / Notices
     { pdfPage: 1, half: 'left' },  // Logical page 4 - Church Notices (back cover)
-    { pdfPage: 3, half: 'left' },  // Logical page 5 - Prayer (part 1)
-    { pdfPage: 3, half: 'right' }, // Logical page 6 - Prayer (continued)
-    
+    { pdfPage: 3, half: 'left' },  // Logical page 5 - Ephesians 4:1-16
+    { pdfPage: 3, half: 'right' }, // Logical page 6 - John 15:9-17
 ];
 
 const pdfPageCache = new Map();
