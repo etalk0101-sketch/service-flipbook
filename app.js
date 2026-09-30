@@ -3,7 +3,7 @@ import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.m
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
 
 // Bump this each time Wsheet.pdf is replaced so browsers don't serve a stale copy.
-const PDF_VERSION = '2026-09-27';
+const PDF_VERSION = '2026-09-30';
 const PDF_URL = `./Wsheet.pdf?v=${PDF_VERSION}`;
 
 // Wsheet.pdf holds imposed landscape sheets — each PDF page is really two
