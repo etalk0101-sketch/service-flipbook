@@ -17,8 +17,7 @@ const PAGE_MAP = [
     { pdfPage: 1, half: 'left' },  // Logical page 4 - Church Notices (back cover)
     { pdfPage: 3, half: 'left' },  // Logical page 5 - Prayer (part 1)
     { pdfPage: 3, half: 'right' }, // Logical page 6 - Prayer (continued)
-    { pdfPage: 4, half: 'left' },  // Logical page 7 - Old Testament Reading (Deuteronomy 26:1-11)
-    { pdfPage: 4, half: 'right' }, // Logical page 8 - New Testament Reading (Matthew 6:25-33)
+    
 ];
 
 const pdfPageCache = new Map();
