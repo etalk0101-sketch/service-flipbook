@@ -3,7 +3,7 @@ import * as pdfjsLib from 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.m
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4/build/pdf.worker.min.mjs';
 
 // Bump this each time Wsheet.pdf is replaced so browsers don't serve a stale copy.
-const PDF_VERSION = '2026-09-27';
+const PDF_VERSION = '2026-10-07';
 const PDF_URL = `./Wsheet.pdf?v=${PDF_VERSION}`;
 
 // Wsheet.pdf holds imposed landscape sheets — each PDF page is really two
@@ -17,8 +17,6 @@ const PAGE_MAP = [
     { pdfPage: 1, half: 'left' },  // Logical page 4 - Church Notices (back cover)
     { pdfPage: 3, half: 'left' },  // Logical page 5 - Prayer (part 1)
     { pdfPage: 3, half: 'right' }, // Logical page 6 - Prayer (continued)
-    { pdfPage: 4, half: 'left' },  // Logical page 7 - Old Testament Reading (Deuteronomy 26:1-11)
-    { pdfPage: 4, half: 'right' }, // Logical page 8 - New Testament Reading (Matthew 6:25-33)
 ];
 
 const pdfPageCache = new Map();
